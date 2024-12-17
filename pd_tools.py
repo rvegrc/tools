@@ -95,15 +95,36 @@ def plot_hist_mm_lines(values: pd.Series, name: str, measure: str):
     plt.figure(figsize=(12, 6))
     # Sturges’ Rule to determine the optimal number of bins to use in a histogram. source https://www.statology.org/sturges-rule/
     sns.histplot(values, kde=True, bins='sturges')
-    plt.axvline(values.mean(), color='r', linestyle='--', label=f'Mean value of {name}: {values.mean():.2f}{measure}')
-    plt.axvline(values.median(), color='g', linestyle='--', label=f'Median value of {name}: {values.median():.2f}{measure}')
+    plt.axvline(values.mean(), color='r', linestyle='--', label=f'Mean value of {name}: {values.mean():.4f}{measure}')
+    plt.axvline(values.median(), color='g', linestyle='--', label=f'Median value of {name}: {values.median():.4f}{measure}')
     # max value of the distribution
-    plt.axvline(values.max(), color='b', linestyle='--', label=f'Max value of {name}: {values.max():.2f}{measure}')
+    plt.axvline(values.max(), color='b', linestyle='--', label=f'Max value of {name}: {values.max():.4f}{measure}')
     # min value of the distribution
-    plt.axvline(values.min(), color='y', linestyle='--', label=f'Min value of {name}: {values.min():.2f}{measure}')
+    plt.axvline(values.min(), color='y', linestyle='--', label=f'Min value of {name}: {values.min():.4f}{measure}')
     plt.title(f'{name} distribution') 
     plt.ylabel(f'Frequency, sum: {values.count()}')
     plt.xlabel(f'{name}, {measure}')
     plt.legend()
     # Adjust layout to prevent clipping
+    plt.tight_layout()
+
+# rewrite for pandas
+def get_feature_importances(model, train, target, tmp_path):
+    '''Get feature importances from the model and save it to csv file
+    and plot feature importances'''
+    fi = pd.Series(model.feature_importances_)
+    # Normalize feature importances
+    feature_importances = [i / fi.sum() for i in fi]
+    # add feature names
+    features_cols = train.drop(columns=target).columns
+    feature_importances = pd.DataFrame(
+        list(zip(features_cols, feature_importances)),
+        columns=["feature", "importance"]
+    )
+    # sort by importance
+    feature_importances = feature_importances.sort_values(by="importance", ascending=False)
+    feature_importances.to_csv(f'{tmp_path}/feature_importances_{target}.csv')
+
+    sns.barplot(x=feature_importances['importance'], y=feature_importances['feature'])
+     # Adjust layout to prevent clipping
     plt.tight_layout()
