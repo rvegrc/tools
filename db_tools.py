@@ -1,6 +1,7 @@
 
 import pandas as pd
 
+
 def sql_create_table_from_pd(df: pd.DataFrame, db: str, table: str):
     """Create sql to create table in Clickhouse from pandas dataframe
 

@@ -4,6 +4,8 @@ import os
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
+import clickhouse_connect
+
 
 
 from pyspark.sql import DataFrame as SparkDataFrame
@@ -75,3 +77,102 @@ def get_f_imp_spark(model, features_cols:list, target:str, tmp_path:str):
     plt.tight_layout()
     plt.savefig(f'{tmp_path}/feature_importances_{target}.png')
     plt.clf()
+
+
+def upload_data(dfs: SparkDataFrame, db_name: str, table_name: str, driver: str) -> None:
+    """Upload data in clickhouse table 
+
+    Args:
+        dfs (spark dataframe): dataframe with new data
+        db_name (str): name of db
+        table_name (str): name of table
+        driver (str): clickhouse driver for upload data
+    """
+     # Check if the schemas from database and uploading dataframes are the sam
+    dfs_db = spark.sql(f'select * from {db_name}.{table_name}')
+   
+
+    dfs = check_upd_schemas(dfs_db, dfs)
+   
+    if driver == 'jdbc':       
+        (
+            dfs.write.format("jdbc")
+            .option("url", f"jdbc:clickhouse://{CH_IP}:9000")
+            # .option("driver", "com.clickhouse.jdbc.ClickHouseDriver")
+            .option("driver", "com.github.housepower.jdbc.ClickHouseDriver")
+            .option("dbtable", f"{db_name}.{table_name}") # table name
+            .option("user", CH_USER)
+            .option("password", CH_PASS)
+            .option("isolationLevel", "NONE")
+            .mode("append")
+            .save()
+        )
+    # client clickhouse connect
+    else:
+        client = clickhouse_connect.get_client(host=CH_IP, port=8123, username=CH_USER, password=CH_PASS)
+        # convert datetime column
+        client.insert_df(f'{db_name}.{table_name}', dfs.toPandas())
+
+
+def update_one_db_table(dfs_old, dfs_new, db_name, table_name, driver):
+    """Update data in one clickhouse table
+
+    Args:
+        dfs_old (spark dataframe): old data from clickhouse
+        dfs_new (spark dataframe):  new data from csv file
+        db_name (str): db name
+        table_name (str): table name
+        driver (str): clickhouse driver for upload data
+    """    
+    if client.command(f'SELECT count(*) FROM {db_name}.{table_name}') != 0:
+        # Check if the schemas of the two dataframes are the same
+        dfs_new = spark_tools.check_upd_schemas(dfs_old, dfs_new)
+    
+        # Find the difference between the two dataframes
+        dfs_subtract = dfs_new.subtract(dfs_old)
+
+        # Find the intersection of IDs between the two dataframes for find updated rows
+        id_intersect = dfs_new.select('id').intersect(dfs_old.select('id'))
+
+        # Check if there are any updated rows
+        if id_intersect.count() >= 1:
+            
+            # Truncate the tmp.id table
+            client.command('truncate table tmp.id')
+            
+            # Insert the data from id pandas df into tmp.id
+            client.insert("tmp.id", id_intersect.toPandas())
+
+            # Delete the rows from the table where the id is id of updated rows
+            client.command(f'ALTER TABLE {db_name}.{table_name} DELETE WHERE id IN (SELECT id FROM tmp.id)')
+
+            # upload data to clickhouse
+            upload_data(dfs_subtract, db_name, table_name, driver)
+            # there are no updated rows
+        else:
+            upload_data(dfs_new, db_name, table_name, driver)
+    else:
+        upload_data(dfs_new, db_name, table_name, driver)
+
+def update_db_tables(db_name: str, path_data_from: str, driver: str) -> None:
+    """Update tables in db from csv files in folder,
+        were not uploaded table_names saving in list 'tables_w_err'
+
+    Args:
+        db_name: name of db
+        path_data_from: path to folder with csv files with data
+        driver: clickhouse driver for upload data
+    """    
+    files = os.listdir(path_data_from)
+    # list of tables with errors when upload
+    tables_w_err = []
+    for filename in files:
+        table_name = filename.split('.')[0]
+        dfs_old = spark.sql(f'select * from {db_name}.{table_name}')
+        # quote='"', escape='"', multiLine=True for correct read json column
+        dfs_new = spark.read.csv(f'{path_data_from}/{filename}', header=True, inferSchema=True, quote='"', escape='"', multiLine=True)
+        try:
+            update_one_db_table(dfs_old, dfs_new, db_name, table_name, driver)
+        except:
+            tables_w_err.append(table_name)
+    print(f"Tables with errors: {tables_w_err}")
