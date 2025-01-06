@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import clickhouse_connect
-
+from pyspark.sql import DataFrame as SparkDataFrame
 
 
 from pyspark.sql import DataFrame as SparkDataFrame
@@ -79,8 +79,8 @@ def get_f_imp_spark(model, features_cols:list, target:str, tmp_path:str):
     plt.clf()
 
 
-def upload_data(dfs: SparkDataFrame, db_name: str, table_name: str, driver: str) -> None:
-    """Upload data in clickhouse table 
+def upload_data(dfs: SparkDataFrame, db_name: str, table_name: str, driver: str, spark_name) -> None:
+    """Upload data in clickhouse table by Spark or clickhouse connect
 
     Args:
         dfs (spark dataframe): dataframe with new data
@@ -89,7 +89,7 @@ def upload_data(dfs: SparkDataFrame, db_name: str, table_name: str, driver: str)
         driver (str): clickhouse driver for upload data
     """
      # Check if the schemas from database and uploading dataframes are the sam
-    dfs_db = spark.sql(f'select * from {db_name}.{table_name}')
+    dfs_db = spark_name.sql(f'select * from {db_name}.{table_name}')
    
 
     dfs = check_upd_schemas(dfs_db, dfs)
@@ -97,7 +97,7 @@ def upload_data(dfs: SparkDataFrame, db_name: str, table_name: str, driver: str)
     if driver == 'jdbc':       
         (
             dfs.write.format("jdbc")
-            .option("url", f"jdbc:clickhouse://{CH_IP}:9000")
+            .option("url", f"jdbc:clickhouse://{CH_IP}")
             # .option("driver", "com.clickhouse.jdbc.ClickHouseDriver")
             .option("driver", "com.github.housepower.jdbc.ClickHouseDriver")
             .option("dbtable", f"{db_name}.{table_name}") # table name
@@ -114,7 +114,7 @@ def upload_data(dfs: SparkDataFrame, db_name: str, table_name: str, driver: str)
         client.insert_df(f'{db_name}.{table_name}', dfs.toPandas())
 
 
-def update_one_db_table(dfs_old, dfs_new, db_name, table_name, driver):
+def update_one_db_table(dfs_old: None, dfs_new: SparkDataFrame, db_name, table_name, driver) -> None:
     """Update data in one clickhouse table
 
     Args:
