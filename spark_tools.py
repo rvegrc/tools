@@ -10,12 +10,13 @@ from pyspark.sql import SparkSession, functions as F, DataFrame as SparkDataFram
 
 
 class SparkTools:
-    def __init__(self, spark: SparkSession, path_to_data: str, CH_IP: str = None, CH_USER: str = None, CH_PASS: str = None):
+    def __init__(self, spark: SparkSession, path_to_data: str, tmp_path: str, CH_IP: str = None, CH_USER: str = None, CH_PASS: str = None):
         self.spark = spark
         self.CH_IP = CH_IP
         self.CH_USER = CH_USER
         self.CH_PASS = CH_PASS
         self.path_to_data = path_to_data
+        self.tmp_path = tmp_path
 
 
     def check_nn_spark(dfs: SparkDataFrame) -> None:
@@ -42,7 +43,7 @@ class SparkTools:
         return dict_dfs
 
 
-    def get_f_imp_spark(model, features_cols:list, target:str, tmp_path:str):
+    def get_f_imp_spark(self, model, features_cols:list, target:str) -> None:
         '''Get feature importances from the model and save it to the csv file and plot to the png file'''
         # Get feature importance
         fi = pd.Series(model.stages[-1].getFeatureImportances())
@@ -55,12 +56,12 @@ class SparkTools:
         
         # sort by importance
         feature_importances = feature_importances.sort_values(by="importance", ascending=False)
-        feature_importances.to_csv(f'{tmp_path}/feature_importances_{target}.csv')
+        feature_importances.to_csv(f'{self.tmp_path}/feature_importances_{target}.csv')
 
         sns.barplot(x=feature_importances['importance'], y=feature_importances['feature'])
         plt.title('Feature importances')
         plt.tight_layout()
-        plt.savefig(f'{tmp_path}/feature_importances_{target}.png')
+        plt.savefig(f'{self.tmp_path}/feature_importances_{target}.png')
         plt.clf()
 
 
