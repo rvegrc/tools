@@ -10,12 +10,12 @@ from pyspark.sql import SparkSession, functions as F, DataFrame as SparkDataFram
 
 
 class SparkTools:
-    def __init__(self, spark: SparkSession, path_to_data: str, tmp_path: str, CH_IP: str = None, CH_USER: str = None, CH_PASS: str = None):
+    def __init__(self, spark: SparkSession, data_path: str, tmp_path: str, CH_IP: str = None, CH_USER: str = None, CH_PASS: str = None):
         self.spark = spark
         self.CH_IP = CH_IP
         self.CH_USER = CH_USER
         self.CH_PASS = CH_PASS
-        self.path_to_data = path_to_data
+        self.data_path = data_path
         self.tmp_path = tmp_path
 
 
@@ -34,12 +34,12 @@ class SparkTools:
         Returns:
             dict: dictionary with dataframes
         """        
-        files_list = os.listdir(self.path_to_data)
+        files_list = os.listdir(self.data_path)
         file_names_list = [x.replace('.csv', '') for x in files_list if x.endswith('.csv')]
         # file_name = list(map(lambda x: x.replace('.csv', ''), file_names_list)) # alternative way to create file_names_list
         dict_dfs = {}
         for name, csv_file in zip(file_names_list, files_list):
-            dict_dfs[name] = pd.read_csv(self.path_to_data + '/' + csv_file)
+            dict_dfs[name] = pd.read_csv(self.data_path + '/' + csv_file)
         return dict_dfs
 
 
@@ -173,14 +173,14 @@ class SparkTools:
             path_data_from: path to folder with csv files with data
             driver: clickhouse driver for upload data
         """    
-        files = os.listdir(self.path_to_data)
+        files = os.listdir(self.data_path)
         # list of tables with errors when upload
         tables_w_err = []
         for filename in files:
             table_name = filename.split('.')[0]
             dfs_old = self.spark.sql(f'select * from {db_name}.{table_name}')
             # quote='"', escape='"', multiLine=True for correct read json column
-            dfs_new = self.spark.read.csv(f'{self.path_to_data}/{filename}', header=True, inferSchema=True, quote='"', escape='"', multiLine=True)
+            dfs_new = self.spark.read.csv(f'{self.data_path}/{filename}', header=True, inferSchema=True, quote='"', escape='"', multiLine=True)
             try:
                 self.update_one_db_table(dfs_old, dfs_new, db_name, table_name, driver)
             except:
