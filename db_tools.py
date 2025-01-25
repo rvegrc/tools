@@ -76,7 +76,7 @@ class DbTools:
         # ORDER BY tuple();
         # '''
 
-    def sql_create_table(self, df: pd.DataFrame, db: str, table: str) -> None:
+    def sql_create_table(self, df: pd.DataFrame, db: str, table: str, fields_comments: dict=None) -> None:
             """Create table in ClickHouse db from pd.DataFrame
             db: str: database name
             table: str: table name
@@ -123,6 +123,18 @@ class DbTools:
 
                 create_table_fields.append(res)
 
+            # add comments to fields
+            not_comments = []
+            for n, record in enumerate(create_table_fields):
+                for field in fields_comments:
+                    if field in record:
+                        create_table_fields[n] = record + f" COMMENT '{fields_comments[field]}'"
+                    else:
+                        create_table_fields[n] = record                        
+                        not_comments.append(f'{record} not found in fields_comments')
+
+            print(pd.Series(not_comments).drop_duplicates())
+
             create_table_sql = f"""
                 create table if not exists {db}.{table} (
                     {', '.join(create_table_fields)}
@@ -130,8 +142,8 @@ class DbTools:
                 engine = MergeTree()
                 order by tuple();
             """
-
             return create_table_sql
+
     
     def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str) -> None:
         """Upload data from pd.df to Clickhouse db
