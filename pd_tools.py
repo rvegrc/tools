@@ -5,28 +5,30 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def dict_from_dfs(path_to_data):
+
+class PDTools:
+    def __init__(self, data_path: str, tmp_path: str):
+        self.data_path = data_path
+        self.tmp_path = tmp_path
+        
+
+
+def dict_dfs(path: str) -> dict:
     """Read all csv files from the folder and create a dictionary with dataframes
-
-    Args:
-        path_to_data (str): path to the folder with csv files
-
-    Returns:
-        dict: dictionary with dataframes
     """        
-    files_list = os.listdir(path_to_data)
+    files_list = os.listdir(path)
     file_names_list = [x.replace('.csv', '') for x in files_list if x.endswith('.csv')]
     # file_name = list(map(lambda x: x.replace('.csv', ''), file_names_list)) # alternative way to create file_names_list
     dict_dfs = {}
     for name, csv_file in zip(file_names_list, files_list):
-        dict_dfs[name] = pd.read_csv(path_to_data + '/' + csv_file)
+        dict_dfs[name] = pd.read_csv(path + '/' + csv_file)
     return dict_dfs
 
-def df_info(df):
-    '''Print info and head of dataframe'''
+def info_nuls(df: pd.DataFrame, df_name: str=None) -> None:
+    '''Print info,head and null values of dataframe'''
     print(df.info())
-    display('First 5 rows in df', df.head())
-    print('Null values in df', df.isnull().sum())
+    display(f'First 5 rows in df {df_name}', df.head())
+    print(f'Null values in df {df_name}', df.isnull().sum())
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
