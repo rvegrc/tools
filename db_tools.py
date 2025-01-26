@@ -1,6 +1,7 @@
 
 import pandas as pd
 import clickhouse_connect
+from typing import List, Dict, Any, Optional
 
 class DbTools:
     def __init__(self, data_path: str, tmp_path: str, client: clickhouse_connect.get_client = None):
@@ -8,146 +9,123 @@ class DbTools:
         self.tmp_path = tmp_path
         self.client = client
 
+    def table_field_names_types(self, df: pd.DataFrame, iana_timezone: str=None) -> Dict[str, str]:
+        """Get fields and their types 
+        from pd.DataFrame for db table creation
+        """
 
-    def sql_create_table(df: pd.DataFrame, db: str, table: str) -> str:
-        """Create sql script for create table in Clickhouse db from pandas dataframe
-        """    
-        # create_table_field = ''
-        # # add check for nulls for each column
-        # for col_name in df.columns:
-        #     # col_name = 'l_fk_modality'
-        #     res =  f"`{col_name}` "
-        #     type = str(df[col_name].dtype).split("'")[0].lower()
-        #     nullable = df[col_name].isnull().sum() > 0
-        #     if nullable:
-        #         res += 'Nullable('
-        #     elif type == 'object':
-        #         res += 'String'
-        #         if nullable:
-        #             res += ')'
-        #     elif 'int' in type:
-        #         if df[col_name].min() >= 0:
-        #             res += 'U'
-        #         max_value = abs(df[col_name].max())
-        #         if max_value < 256:
-        #             res += 'Int8'
-        #             if nullable:
-        #                 res += ')'
-        #         elif max_value < 65536:
-        #             res += 'Int16'
-        #             if nullable:
-        #                 res += ')'
-        #         elif max_value < 4294967296:
-        #             res += 'Int32'
-        #             if nullable:
-        #                 res += ')'
-        #         else:
-        #             res += 'Int64'
-        #             if nullable:
-        #                 res += ')'
-        #     elif 'float' in type:
-        #         if abs(df[col_name].max()) < 3.4 * 10**38:
-        #             res += 'Float32'
-        #             if nullable:
-        #                 res += ')'
-        #         else:
-        #             res += 'Float64'
-        #             if nullable:
-        #                 res += ')'
-        #     elif 'date' in type:
-        #         res += 'Date'
-        #         if nullable:
-        #                 res += ')'
-        #     elif 'bool' in type:
-        #         res += 'Bool'
-        #         if nullable:
-        #             res += ')'
-
-        #     create_table_field += res + ',\n'
+        field_types = {}
         
-        # # get sql script for create table
-        # return f'''
-        # drop table if exists {db}.{table};
-        
-        # CREATE TABLE {db}.{table} (
-        #     {create_table_field}
-        # ) 
-        # ENGINE = MergeTree()
-        # ORDER BY tuple();
-        # '''
-
-    def sql_create_table(self, df: pd.DataFrame, db: str, table: str, fields_comments: dict=None) -> None:
-            """Create table in ClickHouse db from pd.DataFrame
-            db: str: database name
-            table: str: table name
-           """
+        for col_name in df.columns:
+            col_type = str(df[col_name].dtype).lower()
+            nullable = df[col_name].isnull().any()
             
-            create_table_fields = []
-            
-            for col_name in df.columns:
-                res = f"`{col_name}` "
-                col_type = str(df[col_name].dtype).lower()
-                nullable = df[col_name].isnull().any()
-                
-                if 'object' in col_type:
-                    res += 'String'
-                elif 'int' in col_type:
-                    min_value = df[col_name].min()
-                    max_value = df[col_name].max()
 
-                    if min_value >= 0:
-                        res += 'U'
-                    
-                    if max_value < 256:
-                        res += 'Int8'
-                    elif max_value < 65536:
-                        res += 'Int16'
-                    elif max_value < 4294967296:
-                        res += 'Int32'
+            if 'object' in col_type:
+                field_types[col_name] = 'String'
+            elif 'int' in col_type:
+                min_value = df[col_name].min()
+                max_value = df[col_name].max()
+
+                if min_value >= 0:
+                    if max_value < 128:
+                        field_types[col_name] = 'UInt8'
+                    elif max_value < 32767:
+                        field_types[col_name] = 'UInt16'
+                    elif max_value < 2147483647:
+                        field_types[col_name] = 'UInt32'
                     else:
-                        res += 'Int64'
-                elif 'float' in col_type:
-                    max_value = abs(df[col_name].max())
-                    res += 'Float32' if max_value < 3.4 * 10**38 else 'Float64'
-                elif 'date' in col_type:
-                    res += 'Date'
-                elif 'bool' in col_type:
-                    res += 'Bool'
+                        field_types[col_name] = 'Int64'
                 else:
-                    res += 'String'  # Default fallback type
-                
-                # split col name and col type
-                if nullable:
-                    # split col name and col type from res
-                    res = res.split(' ')[0] + f" Nullable({res.split(' ')[1]})"
-
-                create_table_fields.append(res)
-
-            # add comments to fields
-            not_comments = []
-            for n, record in enumerate(create_table_fields):
-                for field in fields_comments:
-                    if field in record:
-                        create_table_fields[n] = record + f" COMMENT '{fields_comments[field]}'"
+                    if min_value >= -128 and max_value < 127:
+                        field_types[col_name] = 'Int8'
+                    elif min_value >= -32768 and max_value < 32767:
+                        field_types[col_name] = 'Int16'
+                    elif min_value >= -2147483648 and max_value < 2147483647:
+                        field_types[col_name] = 'Int32'
                     else:
-                        create_table_fields[n] = record                        
-                        not_comments.append(f'{record} not found in fields_comments')
+                        field_types[col_name] = 'Int64'
 
-            print(pd.Series(not_comments).drop_duplicates())
+            elif 'float' in col_type:
+                max_value = abs(df[col_name].max())
+                field_types[col_name] = 'Float32' if max_value < 3.4 * 10**38 else 'Float64'
+            elif 'date' in col_type:
+                field_types[col_name] = 'Date'
+            elif 'time' in col_type:
+                field_types[col_name] = f"DateTime64(6, '{iana_timezone}')"
+            elif 'bool' in col_type:
+                field_types[col_name] = 'Bool'
+            else:
+                field_types[col_name] = 'String'  # Default fallback type
+                  
+            if nullable:
+                field_types[col_name] = f"Nullable({field_types[col_name]})"
+                
 
-            create_table_sql = f"""
-                create table if not exists {db}.{table} (
-                    {', '.join(create_table_fields)}
-                ) 
-                engine = MergeTree()
-                order by tuple();
-            """
-            return create_table_sql
+        return field_types
 
+    def create_table_in_db(self, df: pd.DataFrame, db: str, table: str, 
+                    iana_timezone: str=None, fields_comments: Dict[str,str]=None) -> Dict[str, Dict[str, str]]:
+        """Create table in ClickHouse db from pd.DataFrame and return tables with fields without comments
+        db: str: database name
+        table: str: table name
+        fields_comments: dict: dictionary with comments for fields in table
+        """
+        field_names_types = self.table_field_names_types(df, iana_timezone)
+
+        no_comments = {f'{table}': {}}
+
+        if fields_comments is not None:        
+            # use field name for key in fields_comments dict
+                for field_name in field_names_types.keys():
+                    try:
+                        # for fields with comments
+                        field_names_types[field_name] = field_names_types[field_name] + f" COMMENT '{fields_comments[field_name]}'"
+                    except:
+                        # for fields without comments
+                        no_comments[f'{table}'][f'{field_name}'] = 'No comments'
+                        
+
+        else:
+            no_comments[f'{table}']['all_fields'] = 'No comments'
+
+        field_names_types = [f'{field_name} {field_type}\n' for field_name, field_type in field_names_types.items()]
+
+
+        create_table_script = f"""
+            create table if not exists {db}.{table} 
+            (
+                {','.join(field_names_types)}
+            )
+            engine = MergeTree()
+            order by tuple();
+        """
+        # print(create_table_script)
+        try:
+            #check if table is exists
+            if self.client.command(f'exists {db}.{table}') == 0:            
+                self.client.command(create_table_script)
+                print(f"Table {db}.{table} created")
+            else:
+                print(f'Table {db}.{table} is exists')
+        except Exception as e:
+                print(f"Error while creating table {db}.{table}\n{e}")
+        
+        return no_comments
+               
     
     def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str) -> None:
         """Upload data from pd.df to Clickhouse db
         """
+        try:
+            if self.client:
+                self.client.insert_df(f'{db}.{table}', df)
+            else:
+                print('Client is not defined')
+        except Exception as e:
+                print(f"Error while upload data to {db}.{table}\n{e}")
+        
+        
         if self.client:
             self.client.insert_df(f'{db}.{table}', df)
         else:

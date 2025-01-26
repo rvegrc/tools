@@ -17,11 +17,14 @@ def dict_dfs(path: str) -> dict:
     """Read all csv files from the folder and create a dictionary with dataframes
     """        
     files_list = os.listdir(path)
-    file_names_list = [x.replace('.csv', '') for x in files_list if x.endswith('.csv')]
+    csv_file_names = [x.replace('.csv', '') for x in files_list if x.endswith('.csv')]
+    parq_file_names = [x.replace('.parquet', '') for x in files_list if x.endswith('.parquet')]
     # file_name = list(map(lambda x: x.replace('.csv', ''), file_names_list)) # alternative way to create file_names_list
     dict_dfs = {}
-    for name, csv_file in zip(file_names_list, files_list):
-        dict_dfs[name] = pd.read_csv(path + '/' + csv_file)
+    for name, file in zip(csv_file_names, files_list):
+        dict_dfs[name] = pd.read_csv(path + '/' + file)
+    for name, file in zip(parq_file_names, files_list):
+        dict_dfs[name] = pd.read_parquet(path + '/' + file)
     return dict_dfs
 
 def info_nuls(df: pd.DataFrame, df_name: str=None) -> None:
