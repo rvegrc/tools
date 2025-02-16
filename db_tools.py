@@ -49,9 +49,8 @@ class DbTools:
             elif 'float' in col_type:
                 max_value = abs(df[col_name].max())
                 field_types[col_name] = 'Float32' if max_value < 3.4 * 10**38 else 'Float64'
-            elif 'date' in col_type:
-                field_types[col_name] = 'Date'
-            elif 'time' in col_type:
+    
+            elif 'datetime' in col_type:
                 field_types[col_name] = f"DateTime64(6, '{iana_timezone}')"
             elif 'bool' in col_type:
                 field_types[col_name] = 'Bool'

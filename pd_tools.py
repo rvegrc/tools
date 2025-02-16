@@ -27,11 +27,22 @@ def dict_dfs(path: str) -> dict:
         dict_dfs[name] = pd.read_parquet(path + '/' + file)
     return dict_dfs
 
-def info_nuls(df: pd.DataFrame, df_name: str=None) -> None:
-    '''Print info,head and null values of dataframe'''
+def info_zeroes_nulls(df: pd.DataFrame) -> None:
+    '''Print info,head and cols with zeroes and nulls'''
     print(df.info())
-    display(f'First 5 rows in df {df_name}', df.head())
-    print(f'Null values in df {df_name}', df.isnull().sum())
+    display(f'First 5 rows in df \n', df.head())
+    zeroes = {}
+    nulls = {}
+    for col in df.columns:
+        if ((df[col] == 0).sum() > 0) and (df[col].dtype != 'object') and (df[col].dtype != 'datetime64[ns]') and (df[col].dtype != 'bool'):
+            zeroes[col] = (df[col] == 0).sum()
+        elif df[col].isnull().sum() > 0:
+            nulls[col] = df[col].isnull().sum()
+
+    zeroes = pd.DataFrame(zeroes, index=['zeroes'])
+    nulls = pd.DataFrame(nulls, index=['nulls'])
+
+    display(zeroes, nulls)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
@@ -64,12 +75,12 @@ def drop_cols_one_uniq(df):
     df.drop(columns=drop_cols, inplace=True)
     return df
 
-def replace_date_col(dict_of_dfs, path_new_data, dcol_name):
-    """replace value in "date_end" column to 2149-06-06 if it's more than 2149-06-06(max clickhouse date)
+def replace_date_col(dict_of_dfs, dcol_name):
+    """replace value in "date_finish" column to 2149-06-06 if it's more than 2149-06-06(max clickhouse date)
     and save the new dataframe to the same csv file
 
     Args:
-        dict_of_dfs (dict): dict of dataframes created with "dict_from_dfs" function
+        dict_of_dfs (dict): dict of pd.dataframes
         path_new_data (str): path to the folder where new dataframes will be saved
         col_name (str): name of the column with date
     """ 
@@ -83,11 +94,11 @@ def replace_date_col(dict_of_dfs, path_new_data, dcol_name):
                     try:
                         if datetime.strptime(df[col][i], '%Y-%m-%d') > datetime.strptime('2149-06-06', '%Y-%m-%d'):
                             df.loc[i, col] = pd.to_datetime('2149-06-06').date()
-                            df.to_csv(f'{path_new_data}/{key}.csv', index=False)
+                            # df.to_csv(f'{path_new_data}/{key}.csv', index=False)
                     except:
                         if df[col][i] > pd.to_datetime('2149-06-06').date():
                             df.loc[i, col] = pd.to_datetime('2149-06-06').date()
-                            df.to_csv(f'{path_new_data}/{key}.csv', index=False)
+                            # df.to_csv(f'{path_new_data}/{key}.csv', index=False)
 
 def plot_hist_mm_lines(values: pd.Series, name: str, measure: str):
     """Plots histogram with mean and median lines.
@@ -114,22 +125,18 @@ def plot_hist_mm_lines(values: pd.Series, name: str, measure: str):
     plt.tight_layout()
 
 # rewrite for pandas
-def get_feature_importances(model, train, target, tmp_path):
-    '''Get feature importances from the model and save it to csv file
-    and plot feature importances'''
+def get_feature_importances(model, train: pd.DataFrame) -> pd.DataFrame:
+    '''Get feature importances from the model and sort them in descending order'''
     fi = pd.Series(model.feature_importances_)
     # Normalize feature importances
     feature_importances = [i / fi.sum() for i in fi]
     # add feature names
-    features_cols = train.drop(columns=target).columns
+    features_cols = train.columns
     feature_importances = pd.DataFrame(
         list(zip(features_cols, feature_importances)),
         columns=["feature", "importance"]
     )
     # sort by importance
     feature_importances = feature_importances.sort_values(by="importance", ascending=False)
-    feature_importances.to_csv(f'{tmp_path}/feature_importances_{target}.csv')
-
-    sns.barplot(x=feature_importances['importance'], y=feature_importances['feature'])
-     # Adjust layout to prevent clipping
-    plt.tight_layout()
+    
+    return feature_importances
