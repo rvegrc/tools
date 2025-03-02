@@ -70,63 +70,61 @@ class DbTools:
         table: str: table name
         fields_comments: dict: dictionary with comments for fields in table
         """
-        field_names_types = self.table_field_names_types(df, iana_timezone)
-
-        no_comments = {f'{table}': {}}
-
-        if fields_comments is not None:        
-            # use field name for key in fields_comments dict
-                for field_name in field_names_types.keys():
-                    try:
-                        # for fields with comments
-                        field_names_types[field_name] = field_names_types[field_name] + f" COMMENT '{fields_comments[field_name]}'"
-                    except:
-                        # for fields without comments
-                        no_comments[f'{table}'][f'{field_name}'] = 'No comments'
-                        
-
+           # check if table exists
+        if self.client.command(f'exists {db}.{table}') == 1:
+            print(f"Table {db}.{table} already exists")
+            
+            return {'no filled fields: Table already exists'}
+        
         else:
-            no_comments[f'{table}']['all_fields'] = 'No comments'
+            field_names_types = self.table_field_names_types(df, iana_timezone)
+           
+            # no_comments = {f'{table}': {}}
 
-        field_names_types = [f'{field_name} {field_type}\n' for field_name, field_type in field_names_types.items()]
+            # if fields_comments is not None:        
+            #     # use field name for key in fields_comments dict
+            #         for field_name in field_names_types.keys():
+            #             try:
+            #                 # for fields with comments
+            #                 field_names_types[field_name] = field_names_types[field_name] + f" COMMENT '{fields_comments[field_name]}'"
+            #             except:
+            #                 # for fields without comments
+            #                 no_comments[f'{table}'][f'{field_name}'] = 'No comments'
+                            
 
+            # else:
+            #     no_comments[f'{table}']['all_fields'] = 'No comments'
 
-        create_table_script = f"""
-            create table if not exists {db}.{table} 
-            (
-                {','.join(field_names_types)}
-            )
-            engine = MergeTree()
-            order by tuple();
-        """
-        # print(create_table_script)
-        try:
-            #check if table is exists
-            if self.client.command(f'exists {db}.{table}') == 0:            
+            field_names_types = [f'{field_name} {field_type}\n' for field_name, field_type in field_names_types.items()]
+
+            # print(field_names_types)
+
+            create_table_script = f"""
+                create table if not exists {db}.{table} 
+                (
+                    {','.join(field_names_types)}
+                )
+                engine = MergeTree()
+                order by tuple()
+            """
+            # print(create_table_script)
+            try:
                 self.client.command(create_table_script)
                 print(f"Table {db}.{table} created")
-            else:
-                print(f'Table {db}.{table} is exists')
-        except Exception as e:
-                print(f"Error while creating table {db}.{table}\n{e}")
-        
-        return no_comments
+            except Exception as e:
+                    print(f"Error while creating table {db}.{table}\n{e}")
                
     
-    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str) -> None:
+    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, mode: 'str' 
+                ,iana_timezone: str=None, fields_comments: Dict[str,str]=None) -> dict:
         """Upload data from pd.df to Clickhouse db
+        return dict with fields without comments
         """
-        try:
-            if self.client:
-                self.client.insert_df(f'{db}.{table}', df)
-            else:
-                print('Client is not defined')
-        except Exception as e:
-                print(f"Error while upload data to {db}.{table}\n{e}")
+        no_comments = self.create_table_in_db(df, db, table, iana_timezone, fields_comments)
         
-        
-        if self.client:
-            self.client.insert_df(f'{db}.{table}', df)
-        else:
-            print('Client is not defined')
+        self.client.insert_df(f'{db}.{table}', df)
+        print(f"Data uploaded to {db}.{table}")
+
+        return no_comments
+ 
 
