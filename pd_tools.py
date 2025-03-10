@@ -5,6 +5,10 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import secrets
+import string
+import json
+
 
 class PDTools:
     def __init__(self, data_path: str, tmp_path: str):
@@ -27,22 +31,29 @@ def dict_dfs(path: str) -> dict:
         dict_dfs[name] = pd.read_parquet(path + '/' + file)
     return dict_dfs
 
-def info_zeroes_nulls(df: pd.DataFrame) -> None:
-    '''Print info,head and cols with zeroes and nulls'''
+def df_info(df: pd.DataFrame) -> None:
+    '''Print info,head and cols with zeroes, nulls and duplicates in df'''
     print(df.info())
     display(f'First 5 rows in df \n', df.head())
     zeroes = {}
     nulls = {}
+    duplicates = {}
     for col in df.columns:
+        # if there are zeroes in the column
         if ((df[col] == 0).sum() > 0) and (df[col].dtype != 'object') and (df[col].dtype != 'datetime64[ns]') and (df[col].dtype != 'bool'):
             zeroes[col] = (df[col] == 0).sum()
+        # if there are nulls in the column
         elif df[col].isnull().sum() > 0:
             nulls[col] = df[col].isnull().sum()
+        
+    duplicates = df.duplicated().sum()
+
 
     zeroes = pd.DataFrame(zeroes, index=['zeroes'])
     nulls = pd.DataFrame(nulls, index=['nulls'])
+    duplicates = pd.DataFrame([duplicates], index=['duplicates'], columns=['duplicates'])
 
-    display(zeroes, nulls)
+    display(zeroes, nulls, duplicates)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
@@ -140,3 +151,53 @@ def get_feature_importances(model, train: pd.DataFrame) -> pd.DataFrame:
     feature_importances = feature_importances.sort_values(by="importance", ascending=False)
     
     return feature_importances
+
+
+
+def generate_api_keys(num_keys=20, key_length=32, restrictions=None):
+    """
+    Generate API keys with optional restrictions.
+
+    Args:
+        num_keys (int): Number of keys to generate.
+        key_length (int): Length of each API key.
+        restrictions (dict): Dictionary of restrictions to assign to keys.
+
+    Returns:
+        dict: A dictionary of API keys and their associated restrictions.
+    """
+    keys = {}
+    for _ in range(num_keys):
+        # Generate a random API key
+        key = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(key_length))
+        
+        # Assign restrictions if provided
+        keys[key] = restrictions if restrictions else {}
+
+    return keys
+
+def save_keys_to_file(keys, filename="api_keys.json"):
+    """
+    Save API keys to a file in JSON format.
+
+    Args:
+        keys (dict): API keys and their restrictions.
+        filename (str): File name to save the keys.
+    """
+    with open(filename, "w") as file:
+        json.dump(keys, file, indent=4)
+    print(f"API keys saved to {filename}")
+
+# Example usage
+if __name__ == "__main__":
+    # Define restrictions (optional)
+    restrictions_example = {
+        "usage_limit": 1000,  # Max API calls
+        "valid_until": "2025-12-31"  # Expiration date
+    }
+
+    # Generate 20 API keys with restrictions
+    api_keys = generate_api_keys(num_keys=20, key_length=40, restrictions=restrictions_example)
+
+    # Save to a file
+    save_keys_to_file(api_keys)
