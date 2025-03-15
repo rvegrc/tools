@@ -127,4 +127,43 @@ class DbTools:
 
         return no_comments
  
+    # def update_one_db_table(self, dfs_old: SparkDataFrame, dfs_new: SparkDataFrame, db_name, table_name, driver) -> None:
+    #     """Update data in one clickhouse table
 
+    #     Args:
+    #         dfs_old (spark dataframe): old data from clickhouse
+    #         dfs_new (spark dataframe):  new data from csv file
+    #         db_name (str): db name
+    #         table_name (str): table name
+    #         driver (str): clickhouse driver for upload data
+    #     """    
+    #     if self.spark.sql(f'SELECT count(*) FROM {db_name}.{table_name}') != 0:
+    #         # Check if the schemas of the two dataframes are the same
+    #         dfs_new = SparkTools.check_upd_schemas(dfs_old, dfs_new)
+        
+    #         # Find the difference between the two dataframes
+    #         dfs_subtract = dfs_new.subtract(dfs_old)
+
+    #         # Find the intersection of IDs between the two dataframes for find updated rows
+    #         id_intersect = dfs_new.select('id').intersect(dfs_old.select('id'))
+
+    #         # Check if there are any updated rows
+    #         if id_intersect.count() >= 1:
+                
+    #             # Truncate the tmp.id table
+    #             self.spark.sql('truncate table tmp.id')
+                
+    #             # Insert the data from id pandas df into tmp.id
+    #             id_intersect.CreateOrReplaceTempView('id_intersect')
+    #             self.spark.sql("insert into table tmp.id select * from id_intersect")
+
+    #             # Delete the rows from the table where the id is id of updated rows
+    #             self.spark.sql(f'ALTER TABLE {db_name}.{table_name} DELETE WHERE id IN (SELECT id FROM tmp.id)')
+
+    #             # upload data to clickhouse
+    #             self.upload_data(dfs_subtract, db_name, table_name, driver)
+    #             # there are no updated rows
+    #         else:
+    #             self.upload_data(dfs_new, db_name, table_name, driver)
+    #     else:
+    #         self.upload_data(dfs_new, db_name, table_name, driver)
