@@ -38,6 +38,7 @@ def df_info(df: pd.DataFrame) -> None:
     zeroes = {}
     minus_ones = {}
     nulls = {}
+    nans = {}
     duplicates = {}
 
     for col in df.columns:
@@ -45,9 +46,11 @@ def df_info(df: pd.DataFrame) -> None:
         if ((df[col] == 0).sum() > 0) and (df[col].dtype != 'object') and (df[col].dtype != 'datetime64[ns]') and (df[col].dtype != 'bool'):
             zeroes[col] = (df[col] == 0).sum()
         # if there are nulls in the column
-        elif (df[col].isnull().sum() > 0) or (df[col].isna().sum() > 0):
-            nulls[col] = df[col].isnull().sum() + df[col].isna().sum()
+        elif df[col].isnull().sum() > 0:
+            nulls[col] = df[col].isnull().sum()
         # if there are -1 in the column
+        elif df[col].isna().sum() > 0:
+            nans[col] = df[col].isna().sum()
         elif ((df[col] == -1).sum() > 0):
             minus_ones[col] = (df[col] == -1).sum()
         
@@ -59,7 +62,7 @@ def df_info(df: pd.DataFrame) -> None:
     nulls = pd.DataFrame(nulls, index=['nulls'])
     duplicates = pd.DataFrame([duplicates], index=['duplicates'], columns=['duplicates'])
 
-    display(zeroes, minus_ones, nulls, duplicates)
+    display(zeroes, minus_ones, nulls, nans, duplicates)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
