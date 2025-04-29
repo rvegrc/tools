@@ -210,3 +210,26 @@ if __name__ == "__main__":
 
     # Save to a file
     save_keys_to_file(api_keys)
+
+def check_upd_dtypes(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
+    """Check if the dtypes of the two dataframes are the same
+        and if not, update the dtypes of the new dataframe to match the old one
+
+    Args:
+        df_old: df from the database
+        df_new: df from the csv file
+    """    
+    dict_old = {}
+    [dict_old.update({col: d_type}) for col, d_type in df_old.dtypes.items()]
+    
+    dict_new = {}
+    [dict_new.update({col: d_type}) for col, d_type in df_new.dtypes.items()]
+    
+    # check if the dtypes are the same
+    if dict_old != dict_new:
+        # update dtypes of the new dataframe to match the old one
+        for col, dtype in dict_old.items():
+            if col in df_new.columns:
+                df_new[col] = df_new[col].astype(dtype)
+    
+    return df_new
