@@ -9,7 +9,7 @@ class DbTools:
         self.tmp_path = tmp_path
         self.client = client
 
-    def table_field_names_types(self, df: pd.DataFrame, iana_timezone: str=None) -> Dict[str, str]:
+    def table_field_names_types(self, df: pd.DataFrame, iana_timezone: str='Etc/GMT-3') -> Dict[str, str]:
         """Get fields and their types 
         from pd.DataFrame for db table creation
         """
@@ -64,21 +64,18 @@ class DbTools:
         return field_types
 
     def create_table_in_db(self, df: pd.DataFrame, db: str, table: str, 
-                    iana_timezone: str=None, fields_comments: Dict[str,str]=None) -> Dict[str, Dict[str, str]]:
-        """Create table in ClickHouse db from pd.DataFrame and return tables with fields without comments
-        db: str: database name
-        table: str: table name
+                    iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> Dict[str, Dict[str, str]]:
+        '''Create table in ClickHouse db from pd.DataFrame and return tables with fields without comments
         fields_comments: dict: dictionary with comments for fields in table
-        """
-           # check if table exists
+        '''
+        # check if table exists
         if self.client.command(f'exists {db}.{table}') == 1:
             print(f"Table {db}.{table} already exists")
             
             return {'no filled fields: Table already exists'}
         
         else:
-            field_names_types = self.table_field_names_types(df, iana_timezone)
-           
+                       
             # no_comments = {f'{table}': {}}
 
             # if fields_comments is not None:        
@@ -95,7 +92,7 @@ class DbTools:
             # else:
             #     no_comments[f'{table}']['all_fields'] = 'No comments'
 
-            field_names_types = [f'{field_name} {field_type}\n' for field_name, field_type in field_names_types.items()]
+            field_names_types = [f'{field_name} {field_type}\n' for field_name, field_type in self.table_field_names_types(df, iana_timezone).items()]
 
             # print(field_names_types)
 
@@ -115,8 +112,7 @@ class DbTools:
                     print(f"Error while creating table {db}.{table}\n{e}")
                
     
-    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, mode: 'str' 
-                ,iana_timezone: str=None, fields_comments: Dict[str,str]=None) -> dict:
+    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> dict:
         """Upload data from pd.df to Clickhouse db
         return dict with fields without comments
         """

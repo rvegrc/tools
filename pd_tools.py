@@ -39,30 +39,53 @@ def df_info(df: pd.DataFrame) -> None:
     minus_ones = {}
     nulls = {}
     nans = {}
+    nones = {}
+    string_placeholders = {
+        'NA': {},
+        'null': {},
+        'N/A': {}
+    }
     duplicates = {}
 
     for col in df.columns:
-        # if there are zeroes in the column
-        if ((df[col] == 0).sum() > 0) and (df[col].dtype != 'object') and (df[col].dtype != 'datetime64[ns]') and (df[col].dtype != 'bool'):
-            zeroes[col] = (df[col] == 0).sum()
-        # if there are nulls in the column
-        elif df[col].isnull().sum() > 0:
-            nulls[col] = df[col].isnull().sum()
-        # if there are -1 in the column
-        elif df[col].isna().sum() > 0:
-            nans[col] = df[col].isna().sum()
-        elif ((df[col] == -1).sum() > 0):
-            minus_ones[col] = (df[col] == -1).sum()
+        null_count = df[col].isnull().sum()
+        nan_count = df[col].isna().sum()
+        none_count = df[col].apply(lambda x: x is None).sum()
         
+        if null_count > 0:
+            nulls[col] = null_count
+        if nan_count > 0:
+            nans[col] = nan_count
+        if none_count > 0:
+            nones[col] = none_count
+        if (df[col] == -1).sum() > 0:
+            minus_ones[col] = (df[col] == -1).sum()
+        if (df[col] == 0).sum() > 0 and df[col].dtype not in ['object', 'datetime64[ns]', 'bool']:
+            zeroes[col] = (df[col] == 0).sum()
+
+        # Check for string placeholders
+        if df[col].dtype == 'object':
+            for placeholder in string_placeholders:
+                count = (df[col].astype(str).str.strip().str.lower() == placeholder.lower()).sum()
+                if count > 0:
+                    string_placeholders[placeholder][col] = count
+
+    # Count duplicates
     duplicates = df.duplicated().sum()
 
-
+    # Convert to DataFrames
     zeroes = pd.DataFrame(zeroes, index=['zeroes'])
     minus_ones = pd.DataFrame(minus_ones, index=['minus_ones'])
     nulls = pd.DataFrame(nulls, index=['nulls'])
+    nans = pd.DataFrame(nans, index=['nans'])
+    nones = pd.DataFrame(nones, index=['nones'])
+    na_df = pd.DataFrame(string_placeholders['NA'], index=['NA placeholder'])
+    null_str_df = pd.DataFrame(string_placeholders['null'], index=['null placeholder'])
+    na_slash_df = pd.DataFrame(string_placeholders['N/A'], index=['N/A placeholder'])
     duplicates = pd.DataFrame([duplicates], index=['duplicates'], columns=['duplicates'])
 
-    display(zeroes, minus_ones, nulls, nans, duplicates)
+    # Display all
+    display(zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df, duplicates)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
