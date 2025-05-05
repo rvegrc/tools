@@ -85,7 +85,7 @@ def df_info(df: pd.DataFrame) -> None:
     duplicates = pd.DataFrame([duplicates], index=['duplicates'], columns=['duplicates'])
 
     # Display all
-    display(zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df, duplicates)
+    display(duplicates, zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
