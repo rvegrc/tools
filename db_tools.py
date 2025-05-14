@@ -2,6 +2,7 @@
 import pandas as pd
 import clickhouse_connect
 from typing import List, Dict, Any, Optional
+from pd_tools import df_diff
 
 class DbTools:
     def __init__(self, data_path: str, tmp_path: str, client: clickhouse_connect.get_client = None):
@@ -122,44 +123,67 @@ class DbTools:
         print(f"Data uploaded to {db}.{table}")
 
         return no_comments
+    
+    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> dict:
+        '''Create table and upload data from df to Clickhouse db
+        return dict with fields without comments
+        '''
+        # check if table does not exist in db for correct using of function
+        if self.client.command(f'exists {db}.{table}') == 0:
+                print(f"Table {db}.{table} does not exist")
+                # create table in db
+                no_comments = self.create_table_in_db(df, db, table, iana_timezone, fields_comments)
+                # upload data to db
+                self.client.insert_df(f'{db}.{table}', df)
+                print(f"Data uploaded to created {db}.{table}")
+        else:
+                print(f"Table {db}.{table} already exists, use 'uu_to_clickhouse' function")
+                no_comments = {}
+
+        return no_comments
  
-    # def update_one_db_table(self, dfs_old: SparkDataFrame, dfs_new: SparkDataFrame, db_name, table_name, driver) -> None:
-    #     """Update data in one clickhouse table
-
-    #     Args:
-    #         dfs_old (spark dataframe): old data from clickhouse
-    #         dfs_new (spark dataframe):  new data from csv file
-    #         db_name (str): db name
-    #         table_name (str): table name
-    #         driver (str): clickhouse driver for upload data
-    #     """    
-    #     if self.spark.sql(f'SELECT count(*) FROM {db_name}.{table_name}') != 0:
-    #         # Check if the schemas of the two dataframes are the same
-    #         dfs_new = SparkTools.check_upd_schemas(dfs_old, dfs_new)
+    def uu_to_clickhouse(self, df_new: pd.DataFrame, db: str, table: str, tmp_db: str='tmp', iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None):
+        '''Upload new and update old data from df_new to Clickhouse db'''
         
-    #         # Find the difference between the two dataframes
-    #         dfs_subtract = dfs_new.subtract(dfs_old)
+        print(f'\nChecking table {db}.{table}...')
 
-    #         # Find the intersection of IDs between the two dataframes for find updated rows
-    #         id_intersect = dfs_new.select('id').intersect(dfs_old.select('id'))
+        # check if table exists in db
+        if self.client.command(f'exists {db}.{table}') == 0:
+            # create table in db and upload data
+            self.upload_to_clickhouse(df_new, db, table, iana_timezone, fields_comments)
+            print(f"Table {db}.{table} created and data uploaded")
 
-    #         # Check if there are any updated rows
-    #         if id_intersect.count() >= 1:
+        else:
+            df_old = self.client.query_df(f'select * from {db}.{table}')
+
+            new_data, updated_data = df_diff(df_new, df_old, 'id')
+            
+            if len(updated_data) > 0:
+                # drop rows in db with id from updated_data dataframe
+                ids_to_drop = pd.DataFrame(updated_data['id'])
                 
-    #             # Truncate the tmp.id table
-    #             self.spark.sql('truncate table tmp.id')
-                
-    #             # Insert the data from id pandas df into tmp.id
-    #             id_intersect.CreateOrReplaceTempView('id_intersect')
-    #             self.spark.sql("insert into table tmp.id select * from id_intersect")
+                # drop old table with ids to drop
+                self.client.command(f'drop table if exists {tmp_db}.ids_to_drop')
+            
+                # Create ids table and upload 'ids to drop' to db
+                self.upload_to_clickhouse(ids_to_drop, tmp_db, 'ids_to_drop', iana_timezone, fields_comments)
 
-    #             # Delete the rows from the table where the id is id of updated rows
-    #             self.spark.sql(f'ALTER TABLE {db_name}.{table_name} DELETE WHERE id IN (SELECT id FROM tmp.id)')
+                # Delete rows with ids from updated rows via join
+                self.client.command(f'''
+                    delete from {db}.{table}
+                    where id in (select id from {tmp_db}.ids_to_drop)
+                    ''')
+                # upload updated data to db
+                self.client.insert_df(f'{db}.{table}', updated_data)
+                print(f'Updated data uploaded to {db}.{table}, count of updated rows:{updated_data.shape[0]}')
+            
+            else:
+                print(f"No updated data uploaded to {db}.{table}")
 
-    #             # upload data to clickhouse
-    #             self.upload_data(dfs_subtract, db_name, table_name, driver)
-    #             # there are no updated rows
-    #         else:
-    #             self.upload_data(dfs_new, db_name, table_name, driver)
-    #     else:
-    #         self.upload_data(dfs_new, db_name, table_name, driver)
+            
+            if len(new_data) > 0:
+                # upload new data to db
+                self.client.insert_df(f'{db}.{table}', new_data)
+                print(f'New data uploaded to {db}.{table}, count of new rows {new_data.shape[0]}')
+            else:
+                print(f"No new data uploaded to {db}.{table}")

@@ -256,3 +256,62 @@ def check_upd_dtypes(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame
                 df_new[col] = df_new[col].astype(dtype)
     
     return df_new
+
+def update_df(df_new: pd.DataFrame, df_old: pd.DataFrame, key_column: str) -> pd.DataFrame:
+    '''Update df_old from df_new (columns are equal) by key column and return new data and updated data'''
+ 
+    # check and update dtypes in new df from old df
+    df_new = pd_tools.check_upd_dtypes(df_old, df_new)
+    
+    # if old df is not empty
+    if df_old.shape[0] > 0:
+
+        # # Find the intersection of IDs between the two dataframes for find updated and new rows
+        common_keys = pd.merge(df_new[[key_column]], df_old[[key_column]], on=key_column)[key_column]
+
+        # find updated rows only
+        updated_rows = []
+        for key in common_keys:
+            # get row with id from new and old dataframes
+            row_new_tmp = df_new[df_new[key_column] == key] # use for adding
+            row_new = row_new_tmp.squeeze() # use for comparing
+            row_old = df_old[df_old[key_column] == key].squeeze()  # use for comparing
+
+            # check if rows are different
+            if not row_new.equals(row_old):
+                # add to new_data dataframe
+                updated_rows.append(row_new_tmp)
+
+        # add new rows to updated_data dataframe or create empty dataframe if no new rows
+        updated_data = pd.concat(updated_rows, ignore_index=True, axis='rows') if updated_rows else pd.DataFrame(columns=df_new.columns)
+   
+        # filter new data from new df
+        new_data = df_new[~df_new[key_column].isin(common_keys)]
+    
+    else:
+        # if old df is empty, return new df and empty updated df
+        new_data = df_new.copy()
+        updated_data = pd.DataFrame(columns=df_new.columns)
+
+    return new_data, updated_data
+
+
+def df_diff(df_new: pd.DataFrame, df_old: pd.DataFrame, key_column: str) -> pd.DataFrame:
+    '''Find difference between two df by key column and return two df with new rows and updated rows'''  
+    
+    cols_in_new = set(df_new.columns)
+    cols_in_old = set(df_old.columns)
+
+    # check if columns are the same in both dataframes
+    if cols_in_new == cols_in_old:
+        new_data, updated_data = update_df(df_new, df_old, key_column)
+                
+    else:
+        print(f"Columns {cols_in_new - cols_in_old} are not the same in new df and table from db")
+        # set columns in new df to be the same as in old df
+        df_new = df_new[df_old.columns.tolist()]
+
+        new_data, updated_data = update_df(df_new, df_old, key_column)
+
+    return new_data, updated_data
+
