@@ -2,7 +2,7 @@
 import pandas as pd
 import clickhouse_connect
 from typing import List, Dict, Any, Optional
-from pd_tools import df_diff
+from .pd_tools import df_diff
 
 class DbTools:
     def __init__(self, data_path: str, tmp_path: str, client: clickhouse_connect.get_client = None):

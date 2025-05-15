@@ -10,12 +10,6 @@ import string
 import json
 
 
-class PDTools:
-    def __init__(self, data_path: str, tmp_path: str):
-        self.data_path = data_path
-        self.tmp_path = tmp_path
-        
-
 
 def dict_dfs(path: str) -> dict:
     """Read all csv files from the folder and create a dictionary with dataframes
