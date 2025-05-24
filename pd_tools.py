@@ -255,7 +255,7 @@ def update_df(df_new: pd.DataFrame, df_old: pd.DataFrame, key_column: str) -> pd
     '''Update df_old from df_new (columns are equal) by key column and return new data and updated data'''
  
     # check and update dtypes in new df from old df
-    df_new = pd_tools.check_upd_dtypes(df_old, df_new)
+    df_new = check_upd_dtypes(df_old, df_new)
     
     # if old df is not empty
     if df_old.shape[0] > 0:
