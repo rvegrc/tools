@@ -112,18 +112,6 @@ class DbTools:
             except Exception as e:
                     print(f"Error while creating table {db}.{table}\n{e}")
                
-    
-    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> dict:
-        """Upload data from pd.df to Clickhouse db
-        return dict with fields without comments
-        """
-        no_comments = self.create_table_in_db(df, db, table, iana_timezone, fields_comments)
-        
-        self.client.insert_df(f'{db}.{table}', df)
-        print(f"Data uploaded to {db}.{table}")
-
-        return no_comments
-    
     def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> dict:
         '''Create table and upload data from df to Clickhouse db
         return dict with fields without comments
