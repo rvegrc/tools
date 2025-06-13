@@ -3,6 +3,8 @@ import pandas as pd
 import clickhouse_connect
 from typing import List, Dict, Any, Optional
 from .pd_tools import df_diff
+import os
+import datetime
 
 class DbTools:
     def __init__(self, data_path: str, tmp_path: str, client: clickhouse_connect.get_client = None):
@@ -175,3 +177,15 @@ class DbTools:
                 print(f'New data uploaded to {db}.{table}, count of new rows {new_data.shape[0]}')
             else:
                 print(f"No new data uploaded to {db}.{table}")
+
+    
+    def save_db_tables_to_parquet(self, db: str, parent_dir: str):
+        """Save all tables from ClickHouse db to parquet files in parent_dir/bu/db_data/date_save"""
+        # create date for saving data
+        date_save = datetime.datetime.now().strftime('%Y-%m-%d')
+    
+        for table in self.client.query_df(f'show tables from {db}')['name']:
+            # make directory for saving data if not exists
+            os.makedirs(f'{parent_dir}/bu/db_data/{date_save}', exist_ok=True)
+            self.client.query_df(f'select * from {db}.{table}').to_parquet(f'{parent_dir}/bu/db_data/{date_save}/{db}__{table}.parquet', index=False)
+            print(f'Table {db}__{table} saved')
