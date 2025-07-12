@@ -39,7 +39,8 @@ def df_info(df: pd.DataFrame) -> None:
         'null': {},
         'N/A': {}
     }
-    duplicates = {}
+    duplicates_full = {}
+    duplicates_by_cols = {}
 
     for col in df.columns:
         null_count = df[col].isnull().sum()
@@ -63,9 +64,13 @@ def df_info(df: pd.DataFrame) -> None:
                 count = (df[col].astype(str).str.strip().str.lower() == placeholder.lower()).sum()
                 if count > 0:
                     string_placeholders[placeholder][col] = count
+        
+        # Count duplicates by columns
+        duplicates_by_cols[col] = df.duplicated(subset=[col]).sum()
+        
 
-    # Count duplicates
-    duplicates = df.duplicated().sum()
+    # Count full duplicates
+    duplicates_full = df.duplicated().sum()
 
     # Convert to DataFrames
     zeroes = pd.DataFrame(zeroes, index=['zeroes'])
@@ -76,10 +81,11 @@ def df_info(df: pd.DataFrame) -> None:
     na_df = pd.DataFrame(string_placeholders['NA'], index=['NA placeholder'])
     null_str_df = pd.DataFrame(string_placeholders['null'], index=['null placeholder'])
     na_slash_df = pd.DataFrame(string_placeholders['N/A'], index=['N/A placeholder'])
-    duplicates = pd.DataFrame([duplicates], index=['duplicates'], columns=['duplicates'])
+    duplicates_full = pd.DataFrame([duplicates_full], index=['duplicates_full'], columns=['duplicates_full'])
+    duplicates_by_cols = pd.DataFrame(duplicates_by_cols, index=['duplicates_by_cols'])
 
     # Display all
-    display(duplicates, zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df)
+    display(duplicates_full, duplicates_by_cols, zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
