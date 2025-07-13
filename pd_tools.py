@@ -58,10 +58,11 @@ def str_class(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
     series = raw_series.astype(str).str.strip()
 
     is_digit = series.apply(lambda x: x.isdigit())
-    is_alpha = series.apply(lambda x: x.isalpha() if x else False)
+    # NaN becomes the string 'nan' when cast to str.
+    is_alpha = series.apply(lambda x: x.isalpha() if x and (x != 'nan') else False)
     is_empty = series.apply(lambda x: x == '')
 
-    has_letters = series.apply(lambda x: any(c.isalpha() for c in x))
+    has_letters = series.apply(lambda x: any(c.isalpha() for c in x) if x and (x != 'nan') else False)
     has_special_symbols = series.apply(
         lambda x: bool(re.search(r'[^a-zA-Zа-яА-ЯёЁ0-9\s.,]', x))
     )
@@ -90,9 +91,7 @@ def str_class(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
 
     summary = results_df.sum().reset_index()
     summary.columns = ['text_property', 'count']
-
-   
-
+ 
     return summary
 
 def df_info(df: pd.DataFrame) -> None:
