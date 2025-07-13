@@ -25,20 +25,25 @@ def dict_dfs(path: str) -> dict:
         dict_dfs[name] = pd.read_parquet(path + '/' + file)
     return dict_dfs
 
-def not_same_types(df: pd.DataFrame, col_name: str) -> pd.Series:
+def not_same_types(df: pd.DataFrame, col_name: str) -> pd.Series | None:
     """
-    Return col_name with dtypes if dtypes in it are not the same.    
+    If there are multiple dtypes in col, return a col_name with counts of each dtype.
+    Null values are ignored in the check.
+    If all dtypes are the same, return None.    
     """
-    col_types = df[col_name].apply(type).value_counts()
+    non_null_col = df[col_name][df[col_name].notnull()]
+    col_types = non_null_col.apply(type).value_counts()
     if len(col_types) > 1:
         return col_types
+    else:
+        return None  
 
 
 
 def df_info(df: pd.DataFrame) -> None:
     '''Print info,head and cols with zeroes, nulls and duplicates in df'''
     print(df.info())
-    display(f'First 5 rows in df \n', df.head())
+    display(f'First 5 rows in df', df.head())
     zeroes = {}
     minus_ones = {}
     nulls = {}
@@ -77,11 +82,13 @@ def df_info(df: pd.DataFrame) -> None:
                 if count > 0:
                     string_placeholders[placeholder][col] = count
         
-        # Count duplicates by columns
-        duplicates_by_cols[col] = df.duplicated(subset=[col]).sum()
+        # Count duplicates by columns except for nulls
+        duplicates_by_cols[col] = df[col][df[col].notnull()].duplicated().sum()
 
         # Check for different types in the column
         not_same_types_col = not_same_types(df, col)
+        if not_same_types_col is not None:
+            not_same_types_cols[col] = not_same_types_col.to_dict()
         
 
     # Count full duplicates
@@ -101,7 +108,7 @@ def df_info(df: pd.DataFrame) -> None:
     not_same_types_cols = pd.DataFrame.from_dict(not_same_types_cols, orient='index')
 
     # Display all
-    display(duplicates_full, duplicates_by_cols, zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df, not_same_types_col)
+    display(duplicates_full, duplicates_by_cols, zeroes, minus_ones, nulls, nans, nones, na_df, null_str_df, na_slash_df, not_same_types_cols)
 
 def get_sheet_names(file_path):
     '''Function to get the names of the sheets in the excel file'''
