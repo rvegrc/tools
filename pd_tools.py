@@ -29,13 +29,14 @@ def not_same_types(df: pd.DataFrame, col_name: str) -> pd.Series | None:
     """
     If there are multiple dtypes in col, return a col_name with counts of each dtype.
     Null values are ignored in the check.
-    If all dtypes are the same, return None.    
+    If all dtypes are the same, return None and print col_name and type.    
     """
     non_null_col = df[col_name][df[col_name].notnull()]
     col_types = non_null_col.apply(type).value_counts()
     if len(col_types) > 1:
         return col_types
     else:
+        print(f'Column {col_name} has only one type: {col_types.index[0]}')
         return None  
 
 
