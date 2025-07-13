@@ -42,33 +42,37 @@ def not_same_types(df: pd.DataFrame, col_name: str) -> pd.Series | None:
 
 def check_text_properties(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
     '''
-    Classifies values in col_name as digit, alpha, special symbols, empty or etc.
-    "etc" means values that are not digit, alpha, or special-symbols-only.
+    Classifies values in col_name as digit, alpha, empty, special symbols (excluding dot and comma),
+    having dots, commas, or other ('etc').
     '''
     series = df[col_name].astype(str).str.strip()
 
     is_digit = series.apply(lambda x: x.isdigit())
     is_alpha = series.apply(lambda x: x.isalpha())
     is_empty = series.apply(lambda x: x == '')
-    has_special_symbols = series.apply(lambda x: bool(re.search(r'[^a-zA-Z0-9 ]', x)))
+
+    # Special symbols excluding . and ,
+    has_special_symbols = series.apply(lambda x: bool(re.search(r'[^a-zA-Z0-9\s.,]', x)))
+    has_dots = series.apply(lambda x: '.' in x)
+    has_commas = series.apply(lambda x: ',' in x)
 
     # etc = not any of the above
-    etc = ~(is_digit | is_alpha | is_empty | has_special_symbols)
+    etc = ~(is_digit | is_alpha | is_empty | has_special_symbols | has_dots | has_commas)
 
     results_df = pd.DataFrame({
         'is_digit': is_digit,
         'is_alpha': is_alpha,
         'is_empty': is_empty,
         'has_special_symbols': has_special_symbols,
+        'has_dots': has_dots,
+        'has_commas': has_commas,
         'etc': etc
     })
 
-    # Count how many values fall into each category
     summary = results_df.sum().reset_index()
     summary.columns = ['text_property', 'count']
 
     return summary
-
 
 
 def df_info(df: pd.DataFrame) -> None:
