@@ -29,16 +29,70 @@ def not_same_types(df: pd.DataFrame, col_name: str) -> pd.Series | None:
     """
     If there are multiple dtypes in col, return a col_name with counts of each dtype.
     Null values are ignored in the check.
-    If all dtypes are the same, return None.    
+    If all dtypes are the same, return None and print col_name and type.    
     """
     non_null_col = df[col_name][df[col_name].notnull()]
     col_types = non_null_col.apply(type).value_counts()
     if len(col_types) > 1:
         return col_types
     else:
+        print(f'Column {col_name} has only one type: {col_types.index[0]}')
         return None  
 
 
+def str_class(df: pd.DataFrame, col_name: str) -> pd.DataFrame:
+    '''
+    Classifies values in col_name as:
+    - is_digit: all digits
+    - is_alpha: all alphabetic (A-Z or Cyrillic)
+    - is_empty: empty string after strip
+    - has_special_symbols: any character excluding . , letters, digits, space
+    - has_letters: contains at least one letter
+    - has_dots: contains "."
+    - has_commas: contains ","
+    - has_spaces: contains space
+    - nans_nulls: null or NaN
+    - etc: does not match any above
+    '''
+    raw_series = df[col_name]
+    series = raw_series.astype(str).str.strip()
+
+    is_digit = series.apply(lambda x: x.isdigit())
+    # NaN becomes the string 'nan' when cast to str.
+    is_alpha = series.apply(lambda x: x.isalpha() if x and (x != 'nan') else False)
+    is_empty = series.apply(lambda x: x == '')
+
+    has_letters = series.apply(lambda x: any(c.isalpha() for c in x) if x and (x != 'nan') else False)
+    has_special_symbols = series.apply(
+        lambda x: bool(re.search(r'[^a-zA-Zа-яА-ЯёЁ0-9\s.,]', x))
+    )
+    has_dots = series.apply(lambda x: '.' in x)
+    has_commas = series.apply(lambda x: ',' in x)
+    has_spaces = series.apply(lambda x: ' ' in x)
+
+    nans_nulls = raw_series.isnull()
+
+    # etc = does not match any of the above and is not null
+    etc = ~(is_digit | is_alpha | is_empty | has_special_symbols |
+            has_letters | has_dots | has_commas | has_spaces | nans_nulls)
+
+    results_df = pd.DataFrame({
+        'is_digit': is_digit,
+        'is_alpha': is_alpha,
+        'is_empty': is_empty,
+        'has_special_symbols': has_special_symbols,
+        'has_letters': has_letters,
+        'has_dots': has_dots,
+        'has_commas': has_commas,
+        'has_spaces': has_spaces,
+        'nans_nulls': nans_nulls,
+        'etc': etc
+    })
+
+    summary = results_df.sum().reset_index()
+    summary.columns = ['text_property', 'count']
+ 
+    return summary
 
 def df_info(df: pd.DataFrame) -> None:
     '''Print info,head and cols with zeroes, nulls and duplicates in df'''
