@@ -11,3 +11,5 @@ class Paths:
         self.prod_db = 'prod_transerv_cont'
         self.dev_db = 'dev_transerv_cont'
         self.tmp_db = 'tmp'
+        self.models_path = f'{root_path}/models'
+        self.logs_path = f'{root_path}/logs'
