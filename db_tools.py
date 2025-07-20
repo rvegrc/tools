@@ -12,7 +12,7 @@ class DbTools:
         self.tmp_path = tmp_path
         self.client = client
 
-    def table_field_names_types(self, df: pd.DataFrame, iana_timezone: str='Etc/GMT-3') -> Dict[str, str]:
+    def table_field_names_types(self, df: pd.DataFrame, iana_timezone: str='UTC') -> Dict[str, str]:
         """Get fields and their types 
         from pd.DataFrame for db table creation
         """
