@@ -373,22 +373,53 @@ def update_df(df_new: pd.DataFrame, df_old: pd.DataFrame, key_column: str) -> pd
     return new_data, updated_data
 
 
-def df_diff(df_new: pd.DataFrame, df_old: pd.DataFrame, key_column: str) -> pd.DataFrame:
-    '''Find difference between two df by key column and return two df with new rows and updated rows'''  
+# def df_diff(df_new: pd.DataFrame, df_old: pd.DataFrame, key_column: str) -> pd.DataFrame:
+#     '''Find difference between two df by key column and return two df with new rows and updated rows'''  
     
-    cols_in_new = set(df_new.columns)
-    cols_in_old = set(df_old.columns)
+#     cols_in_new = set(df_new.columns)
+#     cols_in_old = set(df_old.columns)
 
-    # check if columns are the same in both dataframes
-    if cols_in_new == cols_in_old:
-        new_data, updated_data = update_df(df_new, df_old, key_column)
+#     # check if columns are the same in both dataframes
+#     if cols_in_new == cols_in_old:
+#         new_data, updated_data = update_df(df_new, df_old, key_column)
                 
-    else:
-        print(f"Columns {cols_in_new - cols_in_old} are not the same in new df and table from db")
-        # set columns in new df to be the same as in old df
-        df_new = df_new[df_old.columns.tolist()]
+#     else:
+#         print(f"Columns {cols_in_new - cols_in_old} are not the same in new df and table from db")
+#         # set columns in new df to be the same as in old df
+#         df_new = df_new[df_old.columns.tolist()]
 
-        new_data, updated_data = update_df(df_new, df_old, key_column)
+#         new_data, updated_data = update_df(df_new, df_old, key_column)
+
+#     return new_data, updated_data
+
+def df_diff(df_new: pd.DataFrame, df_old: pd.DataFrame, key_columns: list) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Find difference between two df by key columns
+    Returns (new_data, updated_data)
+    """
+    # align columns
+    common_cols = [c for c in df_old.columns if c in df_new.columns]
+    df_new = df_new[common_cols]
+    df_old = df_old[common_cols]
+
+    # build keys
+    new_keys = df_new[key_columns].astype(str).agg("-".join, axis=1)
+    old_keys = df_old[key_columns].astype(str).agg("-".join, axis=1)
+
+    df_new = df_new.assign(_key=new_keys)
+    df_old = df_old.assign(_key=old_keys)
+
+    # detect new rows
+    new_mask = ~df_new["_key"].isin(df_old["_key"])
+    new_data = df_new[new_mask].drop(columns=["_key"])
+
+    # detect updated rows
+    merged = df_new.merge(df_old, on="_key", how="inner", suffixes=("_new", "_old"))
+    diff_mask = (merged.filter(like="_new") != merged.filter(like="_old")).any(axis=1)
+    updated_keys = merged.loc[diff_mask, "_key"]
+
+    updated_data = df_new[df_new["_key"].isin(updated_keys)].drop(columns=["_key"])
 
     return new_data, updated_data
+
 
