@@ -67,7 +67,7 @@ class DbTools:
         return field_types
 
     def create_table_in_db(self, df: pd.DataFrame, db: str, table: str, 
-                    iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> Dict[str, Dict[str, str]]:
+                    iana_timezone: str='UTC', fields_comments: Dict[str,str]=None) -> Dict[str, Dict[str, str]]:
         '''Create table in ClickHouse db from pd.DataFrame and return tables with fields without comments
         fields_comments: dict: dictionary with comments for fields in table
         '''
@@ -114,7 +114,7 @@ class DbTools:
             except Exception as e:
                     print(f"Error while creating table {db}.{table}\n{e}")
                
-    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None) -> dict:
+    def upload_to_clickhouse(self, df: pd.DataFrame, db: str, table: str, iana_timezone: str='UTC', fields_comments: Dict[str,str]=None) -> dict:
         '''Create table and upload data from df to Clickhouse db
         return dict with fields without comments
         '''
@@ -132,7 +132,7 @@ class DbTools:
 
         return no_comments
  
-    def uu_to_clickhouse(self, df_new: pd.DataFrame, db: str, table: str, tmp_db: str='tmp', iana_timezone: str='Etc/GMT-3', fields_comments: Dict[str,str]=None):
+    def uu_to_clickhouse(self, df_new: pd.DataFrame, db: str, table: str, tmp_db: str='tmp', iana_timezone: str='UTC', fields_comments: Dict[str,str]=None):
         '''Upload new and update old data from df_new to Clickhouse db'''
         
         print(f'\nChecking table {db}.{table}...')
