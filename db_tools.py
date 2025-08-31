@@ -118,8 +118,9 @@ class DbTools:
         '''Create table and upload data from df to Clickhouse db
         return dict with fields without comments
         '''
-        # check if table does not exist in db for correct using of function
-        if self.client.command(f'exists {db}.{table}') == 0:
+        
+        # check if table does not exist or table is empty in db, for correct using of function
+        if self.client.command(f'exists {db}.{table}') == 0 or self.client.query_df(f'select * from {db}.{table}').shape[0] == 0:
                 print(f"Table {db}.{table} does not exist")
                 # create table in db
                 no_comments = self.create_table_in_db(df, db, table, iana_timezone, fields_comments)
@@ -196,8 +197,8 @@ class DbTools:
 
         print(f"\nChecking table {db}.{table}...")
 
-        # check if table exists
-        if self.client.command(f"exists {db}.{table}") == 0:
+        # check if table exists or is empty
+        if self.client.command(f"exists {db}.{table}") == 0 or self.client.query_df(f"select * from {db}.{table}").shape[0] == 0:
             # create table and upload all data
             self.upload_to_clickhouse(df_new, db, table, iana_timezone, fields_comments)
             print(f"Table {db}.{table} created and data uploaded")
