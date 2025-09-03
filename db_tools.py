@@ -218,7 +218,7 @@ class DbTools:
         new_data, updated_data = df_diff(df_new, df_old, key_columns)
 
         # process updates
-        if len(updated_data) > 0:
+        if len(updated_data, key_columns) > 0:
             print(f"Found {len(updated_data)} updated rows")
 
             # delete existing rows in ClickHouse matching updated keys
@@ -228,8 +228,8 @@ class DbTools:
 
             self.client.command(f"""
                 ALTER TABLE {db}.{table}
-                DELETE WHERE (measure, service, model_run_id) IN 
-                    (SELECT measure, service, model_run_id FROM {tmp_db}.keys_to_delete)
+                DELETE WHERE ({key_columns}) IN 
+                    (SELECT {key_columns} FROM {tmp_db}.keys_to_delete)
             """)
 
             # insert updated rows
