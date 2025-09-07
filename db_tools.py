@@ -218,7 +218,7 @@ class DbTools:
         new_data, updated_data = df_diff(df_new, df_old, key_columns)
 
         # process updates
-        if len(updated_data, key_columns) > 0:
+        if len(updated_data) > 0:
             print(f"Found {len(updated_data)} updated rows")
 
             # delete existing rows in ClickHouse matching updated keys
