@@ -1,0 +1,11 @@
+[package]
+name = "replace_backspace"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+
+# Fast recursive directory traversal (cross-platform)
+# Used to efficiently iterate through all files in a folder tree
+walkdir = "2"
+
